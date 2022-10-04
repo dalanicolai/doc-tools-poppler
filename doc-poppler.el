@@ -1,21 +1,39 @@
-(defun poppler-structured-contents (&optional page stop word)
-  (let ((file-path (buffer-file-name)))
-    (with-temp-buffer
-      (shell-command (concat "pdftotext "
-                             ;; (concat "pdftotext "
-                             (when page
-                               (format "-f %s -l %s " page (or stop page)))
-                             (if word
-                                 "-bbox "
-                               "-bbox-layout ")
-                             "-q " ;don't print errors
-                             (shell-quote-argument file-path)
-                             " -")
-                     t)
-      (let-alist (libxml-parse-html-region (point-min) (point-max))
-        (cdr .body.doc)))))
+(defvar doc-poppler-info-commands '(doc-poppler-page-sizes
+                              doc-poppler-structured-contents))
 
-(defun poppler-structural-filter (fn hidden-text-list &optional format-fn)
+(defun doc-poppler-info (function &optional arg)
+  (interactive (if (member (file-name-extension (buffer-file-name))
+                           '("pdf" "epub"))
+                   (list (intern-soft (completing-read "Select info type: "
+                                                       doc-poppler-info-commands))
+                         current-prefix-arg)
+                 (user-error "Buffer file not of `pdf' or `epub' type")))
+  (pp (pcase function
+        ('doc-poppler-structured-contents (call-interactively #'doc-poppler-structured-contents))
+        (var (funcall var)))
+      (when arg
+        (get-buffer-create "*doc-poppler-info*")))
+  (when arg (pop-to-buffer "*doc-poppler-info*")))
+
+(defun doc-poppler-structured-contents (&optional page stop word)
+    (interactive "nEnter page number: ")
+    (let ((file-path (buffer-file-name)))
+      (with-temp-buffer
+	(shell-command (concat "pdftotext "
+                               ;; (concat "pdftotext "
+                               (when page
+				 (format "-f %s -l %s " page (or stop page)))
+                               (if word
+                                   "-bbox "
+				 "-bbox-layout ")
+                               "-q " ;don't print errors
+                               (shell-quote-argument file-path)
+                               " -")
+                       t)
+	(let-alist (libxml-parse-html-region (point-min) (point-max))
+          (cdr .body.doc)))))
+
+(defun doc-poppler-structural-filter (fn hidden-text-list &optional format-fn)
   (letrec ((elements nil)
            (recur (lambda (text)
                     (if (funcall fn text)
