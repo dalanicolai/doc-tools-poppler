@@ -44,3 +44,23 @@
                                             (string-to-number (cdr c)))
                                           (nth 1 e))
                                   (last e))))))
+
+(defun doc-poppler-number-of-pages (&optional file)
+  (setq file (or file buffer-file-name))
+  (let ((lines (mapcar #'split-string (process-lines "pdfinfo" file))))
+    (string-to-number (car (alist-get "Pages:" lines nil nil 'string=)))))
+
+(defun doc-poppler-page-sizes (&optional file last-page)
+  (setq file (or file buffer-file-name))
+  (let* ((lines (mapcar #'split-string
+                        (process-lines "pdfinfo"
+                                       "-l" (number-to-string
+                                             (or last-page doc-scroll-last-page))
+                                       file)))
+         page-sizes)
+    (dolist (l lines)
+      (when (string= "size:" (nth 2 l))
+        (push (cons (string-to-number (nth 3 l))
+                    (string-to-number (nth 5 l)))
+              page-sizes)))
+    page-sizes))
